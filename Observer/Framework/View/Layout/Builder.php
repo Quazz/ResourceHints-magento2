@@ -12,6 +12,9 @@ use Magento\Framework\App\Config\ScopeConfigInterface as ScopeConfig;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\View\Page\Config as PageConfig;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Filesystem;
+use Magento\Store\Model\StoreManagerInterface;
 
 class Builder implements ObserverInterface
 {
@@ -30,11 +33,17 @@ class Builder implements ObserverInterface
      * @param PageConfig  $pageConfig
      */
     public function __construct(
+        Filesystem $filesystem,
+        DirectoryList $directoryList,
         ScopeConfig $scopeConfig,
-        PageConfig $pageConfig
+        PageConfig $pageConfig,
+        StoreManagerInterface $storeManager
     ) {
+        $this->filesystem = $filesystem;
+        $this->directoryList = $directoryList;
         $this->scopeConfig = $scopeConfig;
         $this->pageConfig  = $pageConfig;
+        $this->storeManager = $storeManager;
     }
 
     /**
@@ -51,6 +60,13 @@ class Builder implements ObserverInterface
         }
 
         $resourceHints = $this->sort((array) json_decode($configArray));
+        $this->mediaRead = $this->filesystem->getDirectoryRead(DirectoryList::PUB);
+        $storeId = $this->storeManager->getStore()->getId();
+        $lang = $this->scopeConfig->getValue(
+            'general/locale/code',
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
 
         foreach ($resourceHints as $resource) {
             $attributes = [];
@@ -58,6 +74,13 @@ class Builder implements ObserverInterface
 
             if ($resource->type == 'preload') {
                 $attributes['as'] = $resource->preload_as;
+            }
+            if ($resource->preload_as === "font" || $resource->preload_as === "style") {
+                $attributes['crossorigin'] = 'crossorigin';
+                $version = $this->mediaRead->readFile("static/deployed_version.txt");
+
+                $resource->resource = str_replace('VERSION', 'version' . $version, $resource->resource);
+                $resource->resource = str_replace('LANG', $lang, $resource->resource);
             }
 
             $this->pageConfig->addRemotePageAsset(
