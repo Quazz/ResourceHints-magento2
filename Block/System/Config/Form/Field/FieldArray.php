@@ -141,7 +141,7 @@ class FieldArray extends AbstractFieldArray
 
         if ($columnName == 'resource') {
             $this->_columns[$columnName]['class'] = 'input-text required-entry';
-            $this->_columns[$columnName]['style'] = 'width: 200px';
+            $this->_columns[$columnName]['style'] = 'width: 400px';
         }
 
         if ($columnName == 'sort_order') {
